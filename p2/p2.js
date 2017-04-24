@@ -133,12 +133,12 @@ function getColorScale(wat) {
 	var cs;
 
 	switch(wat) {
-	// area : simple black-white log scale, works pretty well poly power
+	// area : simple cube root scale
 	case "AR":
-		cs = d3.scaleLog()
+		cs = d3.scalePow()
 				.domain(ARrange)
 				.range([d3.rgb(0,0,0), d3.rgb(255,255,255)])
-				.base(2);
+				.exponent(1/3);
 		return cs;
 
 	// unemployment rate: rgb scale with 4 steps
