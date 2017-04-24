@@ -234,7 +234,11 @@ function getColorScale(wat) {
 function colorme(wat,d){
 	var cs = getColorScale(wat);
 	var dt = getData(wat,d);
-	return cs(dt);
+	if (uni(wat)){ 
+		return cs(dt);
+	} else {
+		return cs(dt[0], dt[1]);
+	}
 }
 
 //return range given type of map
@@ -260,8 +264,8 @@ function getData(wat,d){
 		case "EM": return (d.EmpRate);
 		case "OB": return (d.Obesity);
 		case "IM": return (d.InfantMortality);
-		case "ES": return (d.esm, d.esw);
-		case "ER": return (d.erm, d.erw);
+		case "ES": return [d.esm, d.esw];
+		case "ER": return [d.erm, d.erw];
 		case "VU": return (d.PL1);
 	}
 }
@@ -294,6 +298,17 @@ function getPos(wat,d){
 						.range([0,p2.cmlSize]);
 	var dt = getData(wat,d);
 	return cmlScale(dt);
+}
+
+function uni(wat){
+	switch(wat){
+		case "ES":
+		case "ER":
+		case "WU":
+		case "WB":
+			return 0;
+		}
+		return 1;
 }
 
 function choiceSet(wat) {
@@ -357,13 +372,14 @@ function choiceSet(wat) {
            ry = p2.circRad
            cx = ... position to indicate data value along X ...
            cy = ... position to indicate data value along Y ... */
+           if (uni){
            d3.select("#cmlMarks").selectAll("ellipse").data(p2.usData)
            		.transition(t)
            		.attr("rx",0.5)
            		.attr("ry", p2.cmlSize/4)
            		.attr("cx", function(d){ return getPos(wat,d)})
            		.attr("cy", p2.cmlSize/2)
-
+           	}
 }
 
 /* ------------------------- Do not change anything below this line */
