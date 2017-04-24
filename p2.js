@@ -133,14 +133,14 @@ function getColorScale(wat) {
 	var cs;
 
 	switch(wat) {
-	// area : simple black-white log scale, works pretty well
+	// area : simple black-white log scale, works pretty well poly power
 	case "AR":
 		cs = d3.scaleLog()
 				.domain(ARrange)
 				.range([d3.rgb(0,0,0), d3.rgb(255,255,255)])
 				.base(2);
 		return cs;
-		//return cs(d.Area);
+
 	// unemployment rate: rgb scale with 4 steps
 	case "UN":
 		cs = d3.scaleLinear()
@@ -153,7 +153,7 @@ function getColorScale(wat) {
 					d3.rgb(255,230,0), 
 					d3.rgb(255,255,255)]);
 		return cs;
-		//return cs(d.UnempRate);
+
 	// employment rate: inverse of above
 	case "EM":
 		cs = d3.scaleLinear()
@@ -167,7 +167,7 @@ function getColorScale(wat) {
 					d3.rgb(230,0,0), 
 					d3.rgb(0,0,0)]);
 		return cs;
-		//return cs(d.EmpRate);
+
 	// infant mortality: transform domain to [0,1], hcl scales
 	case "IM":
 		var X = d3.scaleLinear().domain(IMrange).range([0,1]);
@@ -183,13 +183,14 @@ function getColorScale(wat) {
 		var hslcolors = ["hsl(150,100%,50%)",
 						"hsl(150,0%,50%)",
 						"hsl(330,100%,50%)"];
+		var quant = d3.scaleQuantile()
+						.domain([OBrange[0], mid, OBrange[1]])
+						.range([0,1,2,3,4,5,6,7,8]);
 		cs = d3.scaleLinear()
-				.domain([OBrange[0],mid,OBrange[1]])
-				.interpolate(d3.interpolateHsl)
+				.domain([0,4,8])
 				.range(hslcolors);
-		cs.ticks();
-		return cs;
-		//return cs(d.Obesity);	
+		return function(x){return cs(quant(x))};
+
 	// earnings: simple lab mapping
 	case "ES":
 	cs = function (a,b) { return d3.lab((30+45*(a+b)),
@@ -232,16 +233,8 @@ function getColorScale(wat) {
 //apply coloscale for appropriate data
 function colorme(wat,d){
 	var cs = getColorScale(wat);
-	switch(wat){
-		case "AR": return cs(d.Area);
-		case "UN": return cs(d.UnempRate);
-		case "EM": return cs(d.EmpRate);
-		case "OB": return cs(d.Obesity);
-		case "IM": return cs(d.InfantMortality);
-		case "ES": return cs(d.esm, d.esw);
-		case "ER": return cs(d.erm, d.erw);
-		case "VU": return cs(d.PL1);
-	}
+	var dt = getData(wat,d);
+	return cs(dt);
 }
 
 //return range given type of map
@@ -259,6 +252,21 @@ function getRange(wat){
 	}
 }
 
+//return the appropriate data for map
+function getData(wat,d){
+	switch(wat){
+		case "AR": return (d.Area);
+		case "UN": return (d.UnempRate);
+		case "EM": return (d.EmpRate);
+		case "OB": return (d.Obesity);
+		case "IM": return (d.InfantMortality);
+		case "ES": return (d.esm, d.esw);
+		case "ER": return (d.erm, d.erw);
+		case "VU": return (d.PL1);
+	}
+}
+
+//color the canvas with appropriate scheme
 function canvasme(wat,d){
 // so far only univariate
 	var watrange = getRange(wat);
@@ -276,6 +284,16 @@ function canvasme(wat,d){
           p2.cmlImage.data[k++] = 255; // opacity; keep at 255
       }
   }
+}
+
+//get horizontal position of cml ticks
+function getPos(wat,d){
+	var r = getRange(wat);
+	var cmlScale = d3.scaleLinear()
+						.domain(r)
+						.range([0,p2.cmlSize]);
+	var dt = getData(wat,d);
+	return cmlScale(dt);
 }
 
 function choiceSet(wat) {
@@ -334,6 +352,11 @@ function choiceSet(wat) {
            ry = p2.circRad
            cx = ... position to indicate data value along X ...
            cy = ... position to indicate data value along Y ... */
+           d3.select("#cmlMarks").selectAll("ellipse").data(p2.usData)
+           		.attr("rx",0.5)
+           		.attr("ry", p2.cmlSize/4)
+           		.attr("cx", function(d){ return getPos(wat,d)})
+           		.attr("cy", p2.cmlSize/2)
 
 }
 
