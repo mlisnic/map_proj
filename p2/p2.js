@@ -302,6 +302,10 @@ function choiceSet(wat) {
 
     console.log("choiceSet(", wat, ", ", (uni ? "uni" : "bi") + "variate)"); /* feel free to remove this line before handing in */
 
+    // define transition properties
+    var t = d3.transition()
+    		.duration(p2.transDur)
+    		.ease(d3.easeLinear);
     /* 0) based on "wat", get all the information (created in dataFinish())
        about how to visualize "wat" */
 
@@ -311,6 +315,7 @@ function choiceSet(wat) {
        color with .style("fill", function(d){ return ... color ...; })*/
 
     d3.select("#mapUS").selectAll("path").data(p2.usData)
+    	.transition(t)
     	.style("fill", function(d){ return colorme(wat,d)});
     /* 2) reset pixels of cmlImage.data, by traversing it via (see index.html):
        for (var j=0, k=0; j < p2.cmlSize; j++) {
@@ -353,6 +358,7 @@ function choiceSet(wat) {
            cx = ... position to indicate data value along X ...
            cy = ... position to indicate data value along Y ... */
            d3.select("#cmlMarks").selectAll("ellipse").data(p2.usData)
+           		.transition(t)
            		.attr("rx",0.5)
            		.attr("ry", p2.cmlSize/4)
            		.attr("cx", function(d){ return getPos(wat,d)})
