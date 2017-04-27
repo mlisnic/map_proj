@@ -44,7 +44,7 @@ const cmlSize = 210; // width and height of picture of colormap
 //declare range global vars
 var ARrange, EMrange, UNrange, OBrange, IMrange, 
 	VUrange, WUrange, VBrange, WBrange, 
-	ESwrange, ESmrange, ERwrange, ERmrange;
+	ESwrange, ESmrange, ERwrange, ERmrange, Emax, EWrange, EWWrange;
 
 
 function rowFinish(d) {
@@ -101,7 +101,7 @@ function dataFinish(data) {
        data.map(function(d) { d.WF = ((+d.Clinton)+(+d.Trump))/VTmax});
        data.map(function(d) { d.WA = 1 - Math.pow((1-d.WF),3) });
     // calculating params for earnings
-       var Emax = d3.max(data, function(d) { return Math.max(d.WomenEarning,d.MenEarning); });
+       Emax = d3.max(data, function(d) { return Math.max(d.WomenEarning,d.MenEarning); });
        var EWmax = d3.max(data, function(d) { return +d.WomenEarning});
        var EMmax = d3.max(data, function(d) { return +d.MenEarning});
        var EWmin = d3.min(data, function(d) { return +d.WomenEarning});
@@ -124,6 +124,8 @@ function dataFinish(data) {
        ESmrange = d3.extent(data, function(d){ return +d.esm});
        ERwrange = d3.extent(data, function(d){ return +d.erw});
        ERmrange = d3.extent(data, function(d){ return +d.erm});
+       EWrange = d3.extent(data, function(d){ return +d.WomenEarning});
+       EWWrange = d3.extent(data, function(d){ return +d.MenEarning});
 
 }
 
@@ -193,22 +195,18 @@ function getColorScale(wat) {
 
 	// earnings: simple lab mapping
 	case "ES":
-	cs = function (a,b) { return d3.lab((30+45*(a+b)),
-						0,
-						230*(a-b))};
-		return cs;
 	case "ER":
 		cs = function (a,b) { return d3.lab((30+45*(a+b)),
 						0,
 						230*(a-b))};
 		return cs;
-	// Obama/Romney uni :
+	// electoral uni :
 	case "VU":
+	case "WU":
 		var c1 = d3.rgb(210,0,0);
 		var c2 = d3.rgb(0,0,210);
 		var H1 = d3.hcl(c1).h;
 		var H2 = d3.hcl(c2).h;
-		console.log(H1,H2);
 		function Hu(x) { if (x<0.5)
 						 {return H1}
 						else 
@@ -222,18 +220,42 @@ function getColorScale(wat) {
 		var Lu = d3.scaleLinear()
 					.domain([0,0.5,1])
 					.range([d3.hcl(c1).l,
-							d3.hcl("darkgray").l,
+							d3.hcl("darkslategray").l,
 							d3.hcl(c2).l]);
-		cs = function(xu) {return d3.hcl(Hu(xu),Cu(xu),Lu(xu))};
+		cs = function(xu) 
+			{return d3.hcl(Hu(xu),Cu(xu),Lu(xu))};
+		return cs;
+	// electoral bivariate:
+	case "VB":
+	case "WB":
+		var c1 = d3.rgb(210,0,0);
+		var c2 = d3.rgb(0,0,210);
+		var H1 = d3.hcl(c1).h;
+		var H2 = d3.hcl(c2).h;
+		var Cmin = d3.hcl(c1).c;
+		var Cmax = d3.hcl(c2).c;
+		var Lu = d3.scaleLinear()
+					.domain([0,0.5,1])
+					.range([d3.hcl(c1).l,
+							d3.hcl("darkslategray").l,
+							d3.hcl(c2).l]);
+		function bi_chroma(x) {return d3.scaleLinear()
+					.domain([0,1])
+					.range([0, Cu(x)])};
+		function bi_lumi(x) {return d3.scaleLinear()
+					.domain([0,1])
+					.range([100, Lu(x)])};
+		cs = function(xu, v) 
+			{return d3.hcl(Hu(xu),bi_chroma(xu)(v),bi_lumi(xu)(v))};
 		return cs;
 	}
-	//return d3.rgb(12, 67, 199);
 }
 
 //apply coloscale for appropriate data
-function colorme(wat,d){
+function colorMe(wat,d){
 	var cs = getColorScale(wat);
 	var dt = getData(wat,d);
+
 	if (uni(wat)){ 
 		return cs(dt);
 	} else {
@@ -250,9 +272,13 @@ function getRange(wat){
 		case "EM": return EMrange;
 		case "OB": return OBrange;
 		case "IM": return IMrange;
-		case "ES": return ESmrange;
+		case "ES": return ERmrange;
 		case "ER": return ERmrange;
-		case "VU": return [0,1]
+		case "VU": 
+		case "WU":
+		case "VB":
+		case "WB":
+			return [0,1]
 	}
 }
 
@@ -267,18 +293,21 @@ function getData(wat,d){
 		case "ES": return [d.esm, d.esw];
 		case "ER": return [d.erm, d.erw];
 		case "VU": return (d.PL1);
+		case "WU": return (d.PL2);
+		case "VB": return [d.PL1, d.VA];
+		case "WB": return [d.PL2, d.VA];
 	}
 }
 
 //color the canvas with appropriate scheme
-function canvasme(wat,d){
-// so far only univariate
+function canvasMe(wat,d){
 	var watrange = getRange(wat);
+	var cs = getColorScale(wat);
 	var canvasscl = d3.scaleLinear()
 						.range(watrange)
 						.domain([0,p2.cmlSize]);
-	var cs = getColorScale(wat);
 
+	if (uni(wat)){
 	for (var j=0, k=0; j < p2.cmlSize; ++j) {
       for (var i=0; i < p2.cmlSize; ++i) {
       	var cc = cs(canvasscl(i));
@@ -287,24 +316,94 @@ function canvasme(wat,d){
           p2.cmlImage.data[k++] = d3.rgb(cc).b; // blue
           p2.cmlImage.data[k++] = 255; // opacity; keep at 255
       }
-  }
+  	}
+	} else {
+	var canvasscly = d3.scaleLinear()
+						.range(watrange)
+						.domain([p2.cmlSize,0]);
+	for (var j=0, k=0; j < p2.cmlSize; ++j) {
+		var yval = canvasscly(j);
+      for (var i=0; i < p2.cmlSize; ++i) {
+      	var cc = cs(canvasscl(i),yval);
+          p2.cmlImage.data[k++] = d3.rgb(cc).r; // red
+          p2.cmlImage.data[k++] = d3.rgb(cc).g; // green
+          p2.cmlImage.data[k++] = d3.rgb(cc).b; // blue
+          p2.cmlImage.data[k++] = 255; // opacity; keep at 255
+      }
+  	}
+	}
+	p2.cmlContext.putImageData(p2.cmlImage, 0, 0);
 }
 
-//get horizontal position of cml ticks
-function getPos(wat,d){
+
+//get position of cml ticks by axis
+function getPos(wat,d,axis){
 	var r = getRange(wat);
-	var cmlScale = d3.scaleLinear()
+	var cmlScalex = d3.scaleLinear()
 						.domain(r)
 						.range([0,p2.cmlSize]);
+	var cmlScaley = d3.scaleLinear()
+						.domain(r)
+						.range([p2.cmlSize,0]);
 	var dt = getData(wat,d);
-	return cmlScale(dt);
+	if (axis=="x"){
+		if (uni(wat)){
+		return cmlScalex(dt);
+		} else {
+		return cmlScalex(dt[0]);
+		}
+	} else {
+		return cmlScaley(dt[1]);
+	}
+	
 }
 
+//if not integer, format to 2 decimal places
+function formatFloat(x) {
+    		if (x % 1 === 0) {
+    			return x;
+    		} else {
+    			return d3.format(",.2f")(x);
+    		}
+  }
+
+//return appropriate labels
+function labelMe(wat){
+	   var Xrange, Yrange;
+       switch (wat){
+       	case "ES":
+       		Xrange = EWWrange;
+       		Yrange = EWrange;
+       		break;
+       	case "ER":
+       		Xrange = Yrange = [0, Emax];
+       		break;
+       	default:
+       		Xrange = Yrange = getRange(wat);
+
+       }
+
+       var x0 = formatFloat(Xrange[0]);
+       var x1 = formatFloat(Xrange[1]);
+       if (uni(wat)){
+       	var y0="";
+       	var y1="";
+       } else {
+       	var y0 = Yrange[0];
+       	var y1 = Yrange[1];
+       }
+       d3.select("#xminlabel").html("<text>" + x0 + "</text>");
+       d3.select("#xmaxlabel").html("<text>" + x1 + "</text>");
+       d3.select("#yminlabel").html("<text>" + y0 + "</text>");
+       d3.select("#ymaxlabel").html("<text>" + y1 + "</text>");
+}
+
+//return if map univariate or not
 function uni(wat){
 	switch(wat){
 		case "ES":
 		case "ER":
-		case "WU":
+		case "VB":
 		case "WB":
 			return 0;
 		}
@@ -331,7 +430,7 @@ function choiceSet(wat) {
 
     d3.select("#mapUS").selectAll("path").data(p2.usData)
     	.transition(t)
-    	.style("fill", function(d){ return colorme(wat,d)});
+    	.style("fill", function(d){ return colorMe(wat,d)});
     /* 2) reset pixels of cmlImage.data, by traversing it via (see index.html):
        for (var j=0, k=0; j < p2.cmlSize; j++) {
            for (var i=0; i < p2.cmlSize; i++) {
@@ -348,8 +447,7 @@ function choiceSet(wat) {
        Transitions on canvases are more work, so it is okay for this colormap
        image to change suddenly (w/out transition of duration p2.transDur) */
 
-       canvasme(wat,p2.usData);
-  		p2.cmlContext.putImageData(p2.cmlImage, 0, 0);
+       canvasMe(wat,p2.usData);
 
     /* 3) Update the labels at the corners of the colormap with
        d3.select("#xminlabel").html("<text>" + x0 + "</text>"); where x0 is
@@ -359,6 +457,10 @@ function choiceSet(wat) {
        colormapped.  For univariate maps, set xminlabel and yminlabel to show
        the range, and set yminlabel and ymaxlabel to an empty string.  For
        bivariate maps, set all labels to show the X and Y ranges. */
+
+  		labelMe(wat);
+
+       
 
     /* 4) update (with a transition of duration p2.transDur) the attributes of
        the #cmlMarks ellipses to display the appropriate set of per-state
@@ -377,8 +479,15 @@ function choiceSet(wat) {
            		.transition(t)
            		.attr("rx",0.5)
            		.attr("ry", p2.cmlSize/4)
-           		.attr("cx", function(d){ return getPos(wat,d)})
+           		.attr("cx", function(d){ return getPos(wat,d,"x")})
            		.attr("cy", p2.cmlSize/2)
+           	} else {
+           		d3.select("#cmlMarks").selectAll("ellipse").data(p2.usData)
+           		.transition(t)
+           		.attr("rx",p2.circRad)
+           		.attr("ry", p2.circRad)
+           		.attr("cx", function(d){ return getPos(wat,d,"x")})
+           		.attr("cy", function(d){ return getPos(wat,d,"y")})
            	}
 }
 
